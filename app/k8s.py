@@ -68,6 +68,10 @@ def get_worst_node(metrics: list[NodeMetric]) -> NodeMetric | None:
     return sorted(metrics, key=lambda item: (item.score, item.cpu_percent, item.memory_percent))[0]
 
 
+def get_nodes_by_pressure(metrics: list[NodeMetric]) -> list[NodeMetric]:
+    return sorted(metrics, key=lambda item: (item.score, item.cpu_percent, item.memory_percent))
+
+
 def get_node_count() -> int:
     output = _run_kubectl(["get", "nodes", "-o", "name"])
     return len([line for line in output.splitlines() if line.strip()])

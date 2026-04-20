@@ -10,8 +10,8 @@ from app.k8s import (
     delete_pod,
     get_node_count,
     get_node_metrics,
+    get_nodes_by_pressure,
     get_pod_candidates,
-    get_worst_node,
     uncordon_node,
     wait_until_ready,
 )
@@ -35,19 +35,29 @@ class RebalanceResult:
 
 def run_rebalancer() -> RebalanceResult:
     metrics = get_node_metrics()
-    worst_node = get_worst_node(metrics)
-    if worst_node is None:
+    candidate_nodes = get_nodes_by_pressure(metrics)
+    if not candidate_nodes:
         return RebalanceResult(worst_node="", max_move=0, moved=[], skipped=[])
 
     node_count = get_node_count()
     max_move = calculate_max_move(node_count)
-    candidates = get_pod_candidates(settings.namespace, worst_node.name)
+    selected_node_name = ""
+    candidates: list[PodCandidate] = []
+    for node in candidate_nodes:
+        node_candidates = get_pod_candidates(settings.namespace, node.name)
+        if node_candidates:
+            selected_node_name = node.name
+            candidates = node_candidates
+            break
+
+    if not selected_node_name:
+        return RebalanceResult(worst_node=candidate_nodes[0].name, max_move=max_move, moved=[], skipped=[])
 
     moved: list[MoveResult] = []
     skipped: list[MoveResult] = []
     last_deployment_name = ""
 
-    cordon_node(worst_node.name)
+    cordon_node(selected_node_name)
     try:
         for candidate in candidates:
             if len(moved) >= max_move:
@@ -70,10 +80,10 @@ def run_rebalancer() -> RebalanceResult:
             else:
                 skipped.append(result)
     finally:
-        uncordon_node(worst_node.name)
+        uncordon_node(selected_node_name)
 
     return RebalanceResult(
-        worst_node=worst_node.name,
+        worst_node=selected_node_name,
         max_move=max_move,
         moved=moved,
         skipped=skipped,
