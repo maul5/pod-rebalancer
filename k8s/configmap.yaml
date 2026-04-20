@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pod-rebalancer-config
+  namespace: default
+data:
+  NAMESPACE: "default"
+  WAIT_READY_TIMEOUT_SECONDS: "60"
+  LOOP_INTERVAL_SECONDS: "5"
+  MAX_MOVE_OVERRIDE: "0"
+  DRY_RUN: "false"
+

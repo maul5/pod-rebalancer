@@ -1,0 +1,25 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pod-rebalancer
+  namespace: default
+spec:
+  schedule: "*/5 * * * *"
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 2
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: pod-rebalancer
+          restartPolicy: Never
+          containers:
+            - name: pod-rebalancer
+              image: harbor.local/library/pod-rebalancer:latest
+              imagePullPolicy: Always
+              envFrom:
+                - configMapRef:
+                    name: pod-rebalancer-config
+                - secretRef:
+                    name: pod-rebalancer-secret
+
