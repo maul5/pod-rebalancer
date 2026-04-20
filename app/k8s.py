@@ -32,12 +32,16 @@ class PodCandidate:
     replicas: int
 
 
-def _run_kubectl(args: list[str], check: bool = True) -> str:
+STATE_CONFIGMAP_NAME = "pod-rebalancer-state"
+
+
+def _run_kubectl(args: list[str], check: bool = True, input_text: str | None = None) -> str:
     command = [settings.kubectl_bin, *args]
     completed = subprocess.run(
         command,
         capture_output=True,
         text=True,
+        input=input_text,
         check=False,
     )
     if check and completed.returncode != 0:
@@ -175,3 +179,34 @@ def wait_until_ready(namespace: str, deployment_name: str, deleted_pod_name: str
             return True, replacement_pod_name
         time.sleep(settings.loop_interval_seconds)
     return False, ""
+
+
+def get_last_moved_deployments(namespace: str) -> set[str]:
+    output = _run_kubectl(
+        ["get", "configmap", STATE_CONFIGMAP_NAME, "-n", namespace, "-o", "json"],
+        check=False,
+    ).strip()
+    if not output:
+        return set()
+
+    payload = json.loads(output)
+    if payload.get("kind") == "Status" and payload.get("reason") == "NotFound":
+        return set()
+
+    value = payload.get("data", {}).get("lastMovedDeployments", "")
+    return {item for item in value.split(",") if item}
+
+
+def save_last_moved_deployments(namespace: str, deployments: list[str]) -> None:
+    manifest = {
+        "apiVersion": "v1",
+        "kind": "ConfigMap",
+        "metadata": {
+            "name": STATE_CONFIGMAP_NAME,
+            "namespace": namespace,
+        },
+        "data": {
+            "lastMovedDeployments": ",".join(deployments),
+        },
+    }
+    _run_kubectl(["apply", "-f", "-"], input_text=json.dumps(manifest))

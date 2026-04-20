@@ -8,10 +8,12 @@ from app.k8s import (
     calculate_max_move,
     cordon_node,
     delete_pod,
+    get_last_moved_deployments,
     get_node_count,
     get_node_metrics,
     get_nodes_by_pressure,
     get_pod_candidates,
+    save_last_moved_deployments,
     uncordon_node,
     wait_until_ready,
 )
@@ -41,6 +43,7 @@ def run_rebalancer() -> RebalanceResult:
 
     node_count = get_node_count()
     max_move = calculate_max_move(node_count)
+    last_moved_deployments = get_last_moved_deployments(settings.namespace)
     selected_node_name = ""
     candidates: list[PodCandidate] = []
     for node in candidate_nodes:
@@ -62,6 +65,16 @@ def run_rebalancer() -> RebalanceResult:
         for candidate in candidates:
             if len(moved) >= max_move:
                 break
+            if candidate.deployment_name in last_moved_deployments:
+                skipped.append(
+                    MoveResult(
+                        pod_name=candidate.pod_name,
+                        deployment_name=candidate.deployment_name,
+                        status="skipped",
+                        message="Skipped because this deployment was moved in the previous run.",
+                    )
+                )
+                continue
             if candidate.deployment_name == last_deployment_name:
                 skipped.append(
                     MoveResult(
@@ -81,6 +94,10 @@ def run_rebalancer() -> RebalanceResult:
                 skipped.append(result)
     finally:
         uncordon_node(selected_node_name)
+        save_last_moved_deployments(
+            settings.namespace,
+            [item.deployment_name for item in moved],
+        )
 
     return RebalanceResult(
         worst_node=selected_node_name,

@@ -4,7 +4,8 @@ metadata:
   name: pod-rebalancer
   namespace: default
 spec:
-  schedule: "*/5 * * * *"
+  schedule: "1 1,9,17 * * *"
+  timeZone: "Asia/Seoul"
   successfulJobsHistoryLimit: 1
   failedJobsHistoryLimit: 2
   jobTemplate:
