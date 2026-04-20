@@ -22,4 +22,5 @@ spec:
                     name: pod-rebalancer-config
                 - secretRef:
                     name: pod-rebalancer-secret
+                    optional: true
 

@@ -60,3 +60,8 @@ kubectl apply -f k8s/cronjob.yaml
 - 필요한 GitHub Secrets:
   - `HARBOR_USERNAME`
   - `HARBOR_PASSWORD`
+
+## 🚚 원격 운영 스크립트
+
+- `scripts/push_to_harbor.py`: `192.168.219.211` 에 SSH 접속 후 Docker 빌드 및 Harbor 푸시
+- `scripts/deploy_to_k3s.py`: 동일 서버에서 `kubectl apply` 로 `k8s/*.yaml` 배포
