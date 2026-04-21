@@ -92,6 +92,23 @@ def get_namespace_pods(namespace: str) -> dict[str, Any]:
     return json.loads(output)
 
 
+def get_deployment_pod_names(namespace: str, deployment_name: str) -> set[str]:
+    payload = get_namespace_pods(namespace)
+    pod_names: set[str] = set()
+    for item in payload.get("items", []):
+        metadata = item.get("metadata", {})
+        owner_refs = metadata.get("ownerReferences", [])
+        if not owner_refs:
+            continue
+        replica_set_name = owner_refs[0].get("name", "")
+        inferred_deployment = replica_set_name.rsplit("-", 1)[0] if "-" in replica_set_name else replica_set_name
+        if inferred_deployment == deployment_name:
+            name = metadata.get("name")
+            if name:
+                pod_names.add(name)
+    return pod_names
+
+
 def get_pod_candidates(namespace: str, worst_node_name: str) -> list[PodCandidate]:
     payload = get_namespace_pods(namespace)
     candidates: list[PodCandidate] = []
@@ -152,11 +169,17 @@ def delete_pod(namespace: str, pod_name: str) -> None:
     _run_kubectl(["delete", "pod", pod_name, "-n", namespace, "--wait=false"])
 
 
-def find_ready_replacement(namespace: str, deployment_name: str, excluded_pod_name: str) -> str | None:
+def find_ready_replacement(
+    namespace: str,
+    deployment_name: str,
+    excluded_pod_name: str,
+    existing_pod_names: set[str],
+) -> str | None:
     payload = get_namespace_pods(namespace)
     for item in payload.get("items", []):
         metadata = item.get("metadata", {})
-        if metadata.get("name") == excluded_pod_name:
+        pod_name = metadata.get("name")
+        if pod_name == excluded_pod_name:
             continue
         owner_refs = metadata.get("ownerReferences", [])
         if not owner_refs:
@@ -165,16 +188,29 @@ def find_ready_replacement(namespace: str, deployment_name: str, excluded_pod_na
         inferred_deployment = replica_set_name.rsplit("-", 1)[0] if "-" in replica_set_name else replica_set_name
         if inferred_deployment != deployment_name:
             continue
+        if pod_name in existing_pod_names:
+            continue
         for condition in item.get("status", {}).get("conditions", []):
             if condition.get("type") == "Ready" and condition.get("status") == "True":
-                return metadata.get("name")
+                return pod_name
     return None
 
 
-def wait_until_ready(namespace: str, deployment_name: str, deleted_pod_name: str, timeout_seconds: int) -> tuple[bool, str]:
+def wait_until_ready(
+    namespace: str,
+    deployment_name: str,
+    deleted_pod_name: str,
+    existing_pod_names: set[str],
+    timeout_seconds: int,
+) -> tuple[bool, str]:
     deadline = time.time() + timeout_seconds
     while time.time() < deadline:
-        replacement_pod_name = find_ready_replacement(namespace, deployment_name, deleted_pod_name)
+        replacement_pod_name = find_ready_replacement(
+            namespace,
+            deployment_name,
+            deleted_pod_name,
+            existing_pod_names,
+        )
         if replacement_pod_name:
             return True, replacement_pod_name
         time.sleep(settings.loop_interval_seconds)

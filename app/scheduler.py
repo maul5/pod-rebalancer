@@ -8,6 +8,7 @@ from app.k8s import (
     calculate_max_move,
     cordon_node,
     delete_pod,
+    get_deployment_pod_names,
     get_last_moved_deployments,
     get_node_count,
     get_node_metrics,
@@ -108,11 +109,13 @@ def run_rebalancer() -> RebalanceResult:
 
 
 def _move_one_candidate(candidate: PodCandidate) -> MoveResult:
+    existing_pod_names = get_deployment_pod_names(settings.namespace, candidate.deployment_name)
     delete_pod(settings.namespace, candidate.pod_name)
     ready, replacement_name = wait_until_ready(
         settings.namespace,
         candidate.deployment_name,
         candidate.pod_name,
+        existing_pod_names,
         settings.wait_ready_timeout_seconds,
     )
     if ready:
