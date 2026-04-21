@@ -6,10 +6,12 @@ metadata:
 spec:
   schedule: "1 1,9,17 * * *"
   timeZone: "Asia/Seoul"
+  concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 1
   failedJobsHistoryLimit: 2
   jobTemplate:
     spec:
+      backoffLimit: 0
       template:
         spec:
           serviceAccountName: pod-rebalancer
