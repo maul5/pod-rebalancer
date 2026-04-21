@@ -50,7 +50,23 @@ def _run_kubectl(args: list[str], check: bool = True, input_text: str | None = N
 
 
 def get_node_metrics() -> list[NodeMetric]:
-    output = _run_kubectl(["top", "nodes", "--no-headers"])
+    last_error: KubectlError | None = None
+    for attempt in range(settings.metrics_retry_count):
+        try:
+            output = _run_kubectl(["top", "nodes", "--no-headers"])
+            break
+        except KubectlError as error:
+            last_error = error
+            if "Metrics API not available" not in str(error):
+                raise
+            if attempt == settings.metrics_retry_count - 1:
+                raise
+            time.sleep(settings.metrics_retry_delay_seconds)
+    else:
+        if last_error is not None:
+            raise last_error
+        raise KubectlError("Unable to load node metrics.")
+
     metrics: list[NodeMetric] = []
     for line in output.splitlines():
         columns = line.split()

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import requests
+from requests import RequestException
 
 from app.config import settings
 from app.scheduler import RebalanceResult
@@ -25,9 +26,13 @@ def send_telegram(result: RebalanceResult) -> None:
         ]
     )
 
-    requests.post(
-        f"https://api.telegram.org/bot{settings.telegram_bot_token}/sendMessage",
-        json={"chat_id": settings.telegram_chat_id, "text": message},
-        timeout=10,
-    )
+    try:
+        response = requests.post(
+            f"https://api.telegram.org/bot{settings.telegram_bot_token}/sendMessage",
+            json={"chat_id": settings.telegram_chat_id, "text": message},
+            timeout=10,
+        )
+        response.raise_for_status()
+    except RequestException as error:
+        print(f"telegram warning: {error}")
 

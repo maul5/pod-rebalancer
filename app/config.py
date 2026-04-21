@@ -16,6 +16,8 @@ class Settings:
     namespace: str = os.getenv("NAMESPACE", "default")
     wait_ready_timeout_seconds: int = _int_env("WAIT_READY_TIMEOUT_SECONDS", 60)
     loop_interval_seconds: int = _int_env("LOOP_INTERVAL_SECONDS", 5)
+    metrics_retry_count: int = _int_env("METRICS_RETRY_COUNT", 3)
+    metrics_retry_delay_seconds: int = _int_env("METRICS_RETRY_DELAY_SECONDS", 10)
     telegram_bot_token: str = os.getenv("TELEGRAM_BOT_TOKEN", "")
     telegram_chat_id: str = os.getenv("TELEGRAM_CHAT_ID", "")
     kubectl_bin: str = os.getenv("KUBECTL_BIN", "kubectl")
