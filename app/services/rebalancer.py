@@ -1,8 +1,8 @@
-"""Business rules for one rebalance run.
+"""???? 1? ??? ?? ???? ??? ?? ?????.
 
-This module intentionally does not know how Kubernetes or kubectl are called.
-It only coordinates policy decisions by talking to gateway objects. That keeps
-business logic readable for humans and easier to test in isolation.
+? ??? Kubernetes? kubectl? ??? ????? ?? ????.
+????? ??? ?? ?? ??? ?????, ?? ???? ?? ??
+?? ???? ?????.
 """
 
 from __future__ import annotations
@@ -12,14 +12,14 @@ from app.domain.models import MoveResult, NodeMetric, PodCandidate, RebalanceRes
 
 
 class RebalanceService:
-    """Coordinates a full rebalance run from metrics lookup to final result."""
+    """??? ???? ?? ?? ???? ?? ????? ?????."""
 
     def __init__(self, metrics_gateway, kube_gateway) -> None:
         self.metrics_gateway = metrics_gateway
         self.kube_gateway = kube_gateway
 
     def run(self) -> RebalanceResult:
-        """Execute the end-to-end rebalance policy once."""
+        """?? ? ?? ???? ??? ? ? ?????."""
 
         metrics = self.metrics_gateway.get_node_metrics()
         candidate_nodes = self._sort_nodes_by_pressure(metrics)
@@ -33,9 +33,9 @@ class RebalanceService:
         selected_node_name = ''
         candidates: list[PodCandidate] = []
 
-        # We no longer lock onto one absolute worst node if it has no safe move
-        # candidates. Instead, we walk nodes from busiest to least busy until we
-        # find a node that actually has movable Deployment pods.
+        # ? ?? ???? worst node ??? ???? ????.
+        # ???? ??? ??? ?? ??? ????, ?? ???? ???
+        # ?? ?? ??? Deployment Pod? ?? ? ??? ?????.
         for node in candidate_nodes:
             node_candidates = self.kube_gateway.get_pod_candidates(settings.namespace, node.name)
             if node_candidates:
@@ -85,9 +85,8 @@ class RebalanceService:
                 else:
                     skipped.append(result)
         finally:
-            # Uncordon and state persistence must happen even if one candidate
-            # times out or a later step raises, otherwise the next run can be
-            # left with a partially mutated cluster state.
+            # ??? timeout?? ??? ???? uncordon? ?? ??? ???
+            # ???? ?? ??? ?? ??? ???? ????.
             self.kube_gateway.uncordon_node(selected_node_name)
             self.kube_gateway.save_last_moved_deployments(
                 settings.namespace,
@@ -102,10 +101,10 @@ class RebalanceService:
         )
 
     def _move_one_candidate(self, candidate: PodCandidate) -> MoveResult:
-        """Delete one pod and wait for a truly new ready replacement pod."""
+        """Pod ??? ????, ?? ?? ?? replacement Pod? ?????."""
 
-        # Snapshot existing pod names first so we do not mistake an already
-        # running sibling replica for the new replacement pod.
+        # ?? ?? Pod ???? ??? ??, ?? ? ?? sibling replica?
+        # ? replacement Pod? ???? ??? ???.
         existing_pod_names = self.kube_gateway.get_deployment_pod_names(settings.namespace, candidate.deployment_name)
         self.kube_gateway.delete_pod(settings.namespace, candidate.pod_name)
         ready, replacement_name = self.kube_gateway.wait_until_ready(
@@ -131,7 +130,7 @@ class RebalanceService:
 
     @staticmethod
     def _sort_nodes_by_pressure(metrics: list[NodeMetric]) -> list[NodeMetric]:
-        """Sort from busiest node to least busy node."""
+        """?? ?? ???? ?? ?? ?? ??? ?????."""
 
         return sorted(metrics, key=lambda item: (item.score, item.cpu_percent, item.memory_percent))
 

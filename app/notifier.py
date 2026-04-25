@@ -8,7 +8,7 @@ from app.domain.models import RebalanceResult
 
 
 def send_telegram(result: RebalanceResult) -> None:
-    """Best-effort notification. Telegram failure must not break the job itself."""
+    """Telegram ??? ?? ??? ???. ???? Job ??? ??? ??? ???."""
 
     if not settings.telegram_bot_token or not settings.telegram_chat_id:
         return

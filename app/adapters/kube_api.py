@@ -1,9 +1,9 @@
-"""Official Kubernetes Python client adapter.
+"""?? Kubernetes Python client ??????.
 
-Every structured cluster read or mutation lives in this file. That makes the
-boundary very explicit:
-- `app/adapters/kubectl_metrics.py` handles kubectl-only Metrics API reads.
-- this module handles everything else through the Kubernetes client library.
+???? ???? ??? ??? ?? ? ??? ???.
+? ??? ?????.
+- `app/adapters/kubectl_metrics.py`? kubectl ?? ??? ??? ?????.
+- ? ??? ??? Kubernetes ??? ??? Python client? ?????.
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ SYSTEM_POD_PREFIXES = ('svclb-', 'local-path-provisioner', 'coredns', 'metrics-s
 
 
 class KubeApiGateway:
-    """Cluster gateway built on the official Kubernetes Python client."""
+    """?? Kubernetes Python client? ?? ???? ????????."""
 
     def __init__(self) -> None:
         self._load_config()
@@ -30,7 +30,7 @@ class KubeApiGateway:
         self.apps_api = client.AppsV1Api()
 
     def _load_config(self) -> None:
-        """Prefer in-cluster auth, but allow local execution for debugging/tests."""
+        """???? ???? incluster ???, ?? ?? ??? kubeconfig? ?????."""
 
         try:
             config.load_incluster_config()
@@ -41,10 +41,10 @@ class KubeApiGateway:
         return len(self.core_api.list_node().items)
 
     def get_pod_candidates(self, namespace: str, node_name: str) -> list[PodCandidate]:
-        """Return movable Deployment pods that currently sit on the target node.
+        """?? ?? ?? ?? ?? ??? Deployment Pod ??? ?????.
 
-        Filtering rules are centralized here because they depend on Kubernetes
-        object structure: owner references, replica counts, and node placement.
+        owner reference, replica ?, ?? ?? ???? Kubernetes ?? ???
+        ???? ??? ??? ??? ?? ???.
         """
 
         candidates: list[PodCandidate] = []
@@ -88,10 +88,10 @@ class KubeApiGateway:
         return deployment.spec.replicas or 0
 
     def get_deployment_pod_names(self, namespace: str, deployment_name: str) -> set[str]:
-        """Snapshot current pod names for a Deployment before deleting one pod.
+        """Pod ??? ???? ?? Deployment? ?? Pod ??? ????? ?????.
 
-        The rebalance service uses this snapshot to tell a truly new replacement
-        pod apart from an already-running sibling replica.
+        ? ???? ?? ? ?? sibling Pod? ?? ? ?? ?? replacement Pod?
+        ???? ? ?????.
         """
 
         pod_names: set[str] = set()
@@ -126,7 +126,7 @@ class KubeApiGateway:
         existing_pod_names: set[str],
         timeout_seconds: int,
     ) -> tuple[bool, str]:
-        """Wait for a new, ready replacement pod created after deletion."""
+        """?? ?? ?? ???? replacement Pod? Ready ? ??? ?????."""
 
         deadline = time.time() + timeout_seconds
         while time.time() < deadline:
@@ -148,7 +148,7 @@ class KubeApiGateway:
         deleted_pod_name: str,
         existing_pod_names: set[str],
     ) -> str | None:
-        """Return the name of a newly created ready pod for the deployment."""
+        """?? Deployment? ?? ?? ??? Ready Pod ??? ?????."""
 
         for pod in self.core_api.list_namespaced_pod(namespace=namespace).items:
             pod_name = pod.metadata.name if pod.metadata else None
@@ -164,7 +164,7 @@ class KubeApiGateway:
         return None
 
     def get_last_moved_deployments(self, namespace: str) -> set[str]:
-        """Load the one-run cooldown list from ConfigMap state."""
+        """ConfigMap ???? ?? 1? ??? ?? ??? ?? ???."""
 
         try:
             config_map = self.core_api.read_namespaced_config_map(name=STATE_CONFIGMAP_NAME, namespace=namespace)
@@ -176,7 +176,7 @@ class KubeApiGateway:
         return {item for item in value.split(',') if item}
 
     def save_last_moved_deployments(self, namespace: str, deployments: list[str]) -> None:
-        """Persist the deployments moved in this run so the next run can skip them."""
+        """?? ???? ??? Deployment ??? ??? ?? ???? ? ? ?????."""
 
         if settings.dry_run:
             return
