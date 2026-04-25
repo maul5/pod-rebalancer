@@ -72,14 +72,26 @@ def get_node_metrics() -> list[NodeMetric]:
         columns = line.split()
         if len(columns) < 5:
             continue
+        cpu_percent = _parse_percent(columns[2])
+        memory_percent = _parse_percent(columns[4])
+        if cpu_percent is None or memory_percent is None:
+            print(f"metrics warning: skipped node line with unknown values: {line}")
+            continue
         metrics.append(
             NodeMetric(
                 name=columns[0],
-                cpu_percent=int(columns[2].rstrip("%")),
-                memory_percent=int(columns[4].rstrip("%")),
+                cpu_percent=cpu_percent,
+                memory_percent=memory_percent,
             )
         )
     return metrics
+
+
+def _parse_percent(raw: str) -> int | None:
+    value = raw.rstrip("%")
+    if value == "<unknown>":
+        return None
+    return int(value)
 
 
 def get_worst_node(metrics: list[NodeMetric]) -> NodeMetric | None:
